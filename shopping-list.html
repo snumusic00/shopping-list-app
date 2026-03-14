@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>쇼핑 리스트</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f0f4f8;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 40px 16px;
+    }
+
+    .container {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.1);
+      width: 100%;
+      max-width: 480px;
+      height: fit-content;
+      overflow: hidden;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      padding: 24px;
+    }
+
+    .header h1 {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .header .subtitle {
+      font-size: 13px;
+      opacity: 0.8;
+    }
+
+    .add-form {
+      padding: 20px;
+      border-bottom: 1px solid #f0f0f0;
+      display: flex;
+      gap: 8px;
+    }
+
+    .add-form input {
+      flex: 1;
+      padding: 10px 14px;
+      border: 2px solid #e2e8f0;
+      border-radius: 10px;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .add-form input:focus {
+      border-color: #667eea;
+    }
+
+    .add-form input::placeholder {
+      color: #a0aec0;
+    }
+
+    .btn-add {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      padding: 10px 18px;
+      font-size: 20px;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .btn-add:hover { opacity: 0.9; }
+    .btn-add:active { transform: scale(0.95); }
+
+    .filter-bar {
+      padding: 12px 20px;
+      display: flex;
+      gap: 8px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .filter-btn {
+      padding: 6px 14px;
+      border-radius: 20px;
+      border: none;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: #f0f0f0;
+      color: #666;
+    }
+
+    .filter-btn.active {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+    }
+
+    .list {
+      padding: 8px 0;
+      min-height: 80px;
+    }
+
+    .empty {
+      text-align: center;
+      padding: 40px 20px;
+      color: #a0aec0;
+      font-size: 14px;
+    }
+
+    .empty .icon { font-size: 40px; margin-bottom: 8px; }
+
+    .item {
+      display: flex;
+      align-items: center;
+      padding: 12px 20px;
+      gap: 12px;
+      transition: background 0.15s;
+      border-bottom: 1px solid #fafafa;
+    }
+
+    .item:hover { background: #fafafa; }
+
+    .item:last-child { border-bottom: none; }
+
+    .checkbox {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: 2px solid #cbd5e0;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: all 0.2s;
+      background: white;
+    }
+
+    .checkbox.checked {
+      background: linear-gradient(135deg, #48bb78, #38a169);
+      border-color: transparent;
+      color: white;
+      font-size: 12px;
+    }
+
+    .item-text {
+      flex: 1;
+      font-size: 14px;
+      color: #2d3748;
+      word-break: break-word;
+    }
+
+    .item-text.done {
+      text-decoration: line-through;
+      color: #a0aec0;
+    }
+
+    .item-edit-input {
+      flex: 1;
+      padding: 4px 8px;
+      border: 2px solid #667eea;
+      border-radius: 6px;
+      font-size: 14px;
+      outline: none;
+    }
+
+    .item-actions {
+      display: flex;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+
+    .btn-icon {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 6px;
+      border-radius: 8px;
+      font-size: 14px;
+      transition: background 0.15s;
+      color: #718096;
+    }
+
+    .btn-icon:hover { background: #f0f0f0; }
+    .btn-icon.save { color: #48bb78; }
+    .btn-icon.cancel { color: #fc8181; }
+    .btn-icon.delete:hover { background: #fff5f5; color: #e53e3e; }
+    .btn-icon.edit:hover { background: #ebf8ff; color: #3182ce; }
+
+    .stats {
+      padding: 14px 20px;
+      border-top: 1px solid #f0f0f0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .stats-text {
+      font-size: 12px;
+      color: #a0aec0;
+    }
+
+    .btn-clear {
+      font-size: 12px;
+      color: #fc8181;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 6px;
+      transition: background 0.15s;
+    }
+
+    .btn-clear:hover { background: #fff5f5; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🛒 쇼핑 리스트</h1>
+      <div class="subtitle" id="header-date"></div>
+    </div>
+
+    <div class="add-form">
+      <input type="text" id="new-item" placeholder="아이템 추가..." maxlength="100">
+      <button class="btn-add" id="btn-add" title="추가">+</button>
+    </div>
+
+    <div class="filter-bar">
+      <button class="filter-btn active" data-filter="all">전체</button>
+      <button class="filter-btn" data-filter="active">미완료</button>
+      <button class="filter-btn" data-filter="done">완료</button>
+    </div>
+
+    <div class="list" id="list"></div>
+
+    <div class="stats">
+      <span class="stats-text" id="stats-text"></span>
+      <button class="btn-clear" id="btn-clear-done">완료 항목 삭제</button>
+    </div>
+  </div>
+
+  <script>
+    let items = JSON.parse(localStorage.getItem('shopping-items') || '[]');
+    let filter = 'all';
+    let editingId = null;
+
+    function save() {
+      localStorage.setItem('shopping-items', JSON.stringify(items));
+    }
+
+    function genId() {
+      return Date.now().toString(36) + Math.random().toString(36).slice(2);
+    }
+
+    function render() {
+      const list = document.getElementById('list');
+      const filtered = items.filter(item => {
+        if (filter === 'active') return !item.done;
+        if (filter === 'done') return item.done;
+        return true;
+      });
+
+      if (filtered.length === 0) {
+        list.innerHTML = `<div class="empty"><div class="icon">${filter === 'done' ? '✅' : '🛒'}</div>${filter === 'done' ? '완료된 항목이 없습니다' : '아이템을 추가해보세요!'}</div>`;
+      } else {
+        list.innerHTML = filtered.map(item => {
+          const isEditing = editingId === item.id;
+          return `
+            <div class="item" data-id="${item.id}">
+              <div class="checkbox ${item.done ? 'checked' : ''}" data-action="toggle" data-id="${item.id}">
+                ${item.done ? '✓' : ''}
+              </div>
+              ${isEditing
+                ? `<input class="item-edit-input" id="edit-input-${item.id}" value="${escHtml(item.text)}" maxlength="100">`
+                : `<span class="item-text ${item.done ? 'done' : ''}">${escHtml(item.text)}</span>`
+              }
+              <div class="item-actions">
+                ${isEditing
+                  ? `<button class="btn-icon save" data-action="save" data-id="${item.id}" title="저장">✓</button>
+                     <button class="btn-icon cancel" data-action="cancelEdit" data-id="${item.id}" title="취소">✕</button>`
+                  : `<button class="btn-icon edit" data-action="edit" data-id="${item.id}" title="수정">✎</button>
+                     <button class="btn-icon delete" data-action="delete" data-id="${item.id}" title="삭제">🗑</button>`
+                }
+              </div>
+            </div>`;
+        }).join('');
+
+        if (editingId) {
+          const input = document.getElementById(`edit-input-${editingId}`);
+          if (input) { input.focus(); input.select(); }
+        }
+      }
+
+      const total = items.length;
+      const done = items.filter(i => i.done).length;
+      document.getElementById('stats-text').textContent = `${total}개 중 ${done}개 완료`;
+    }
+
+    function escHtml(str) {
+      return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function addItem() {
+      const input = document.getElementById('new-item');
+      const text = input.value.trim();
+      if (!text) return;
+      items.unshift({ id: genId(), text, done: false });
+      save();
+      input.value = '';
+      filter = 'all';
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b.dataset.filter === 'all'));
+      render();
+    }
+
+    document.getElementById('btn-add').addEventListener('click', addItem);
+    document.getElementById('new-item').addEventListener('keydown', e => { if (e.key === 'Enter') addItem(); });
+
+    document.getElementById('list').addEventListener('click', e => {
+      const btn = e.target.closest('[data-action]');
+      if (!btn) return;
+      const { action, id } = btn.dataset;
+
+      if (action === 'toggle') {
+        const item = items.find(i => i.id === id);
+        if (item) { item.done = !item.done; save(); render(); }
+      } else if (action === 'delete') {
+        if (confirm('삭제하시겠습니까?')) {
+          items = items.filter(i => i.id !== id);
+          if (editingId === id) editingId = null;
+          save(); render();
+        }
+      } else if (action === 'edit') {
+        editingId = id;
+        render();
+      } else if (action === 'save') {
+        const input = document.getElementById(`edit-input-${id}`);
+        const text = input ? input.value.trim() : '';
+        if (text) {
+          const item = items.find(i => i.id === id);
+          if (item) item.text = text;
+          save();
+        }
+        editingId = null;
+        render();
+      } else if (action === 'cancelEdit') {
+        editingId = null;
+        render();
+      }
+    });
+
+    document.getElementById('list').addEventListener('keydown', e => {
+      if (e.target.classList.contains('item-edit-input')) {
+        if (e.key === 'Enter') {
+          const id = e.target.id.replace('edit-input-', '');
+          const text = e.target.value.trim();
+          if (text) {
+            const item = items.find(i => i.id === id);
+            if (item) item.text = text;
+            save();
+          }
+          editingId = null;
+          render();
+        } else if (e.key === 'Escape') {
+          editingId = null;
+          render();
+        }
+      }
+    });
+
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        filter = btn.dataset.filter;
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b === btn));
+        render();
+      });
+    });
+
+    document.getElementById('btn-clear-done').addEventListener('click', () => {
+      const doneCount = items.filter(i => i.done).length;
+      if (doneCount === 0) return alert('완료된 항목이 없습니다.');
+      if (confirm(`완료된 항목 ${doneCount}개를 삭제하시겠습니까?`)) {
+        items = items.filter(i => !i.done);
+        save(); render();
+      }
+    });
+
+    // 날짜 표시
+    const now = new Date();
+    document.getElementById('header-date').textContent =
+      now.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
+
+    render();
+  </script>
+</body>
+</html>
