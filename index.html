@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>쇼핑 리스트</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -122,6 +123,13 @@
     }
 
     .empty .icon { font-size: 40px; margin-bottom: 8px; }
+
+    .loading {
+      text-align: center;
+      padding: 40px 20px;
+      color: #a0aec0;
+      font-size: 14px;
+    }
 
     .item {
       display: flex;
@@ -255,16 +263,20 @@
   </div>
 
   <script>
-    let items = JSON.parse(localStorage.getItem('shopping-items') || '[]');
+    const SUPABASE_URL = 'https://pxfvzuuajimoegfmrqiv.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB4ZnZ6dXVhamltb2VnZm1ycWl2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3MDQyNzYsImV4cCI6MjA4OTI4MDI3Nn0.cuuMXL_zWw98A1nqGEJiR4SgMuiRyo4R4xNuziSBVPk';
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let items = [];
     let filter = 'all';
     let editingId = null;
 
-    function save() {
-      localStorage.setItem('shopping-items', JSON.stringify(items));
-    }
-
     function genId() {
       return Date.now().toString(36) + Math.random().toString(36).slice(2);
+    }
+
+    function escHtml(str) {
+      return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
 
     function render() {
@@ -311,19 +323,61 @@
       document.getElementById('stats-text').textContent = `${total}개 중 ${done}개 완료`;
     }
 
-    function escHtml(str) {
-      return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    async function loadItems() {
+      document.getElementById('list').innerHTML = '<div class="loading">불러오는 중...</div>';
+      const { data, error } = await supabase
+        .from('shopping_items')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) { console.error(error); return; }
+      items = data;
+      render();
     }
 
-    function addItem() {
+    async function addItem() {
       const input = document.getElementById('new-item');
       const text = input.value.trim();
       if (!text) return;
-      items.unshift({ id: genId(), text, done: false });
-      save();
+
+      const newItem = { id: genId(), text, done: false };
+      const { error } = await supabase.from('shopping_items').insert(newItem);
+      if (error) { console.error(error); return; }
+
+      items.unshift(newItem);
       input.value = '';
       filter = 'all';
       document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b.dataset.filter === 'all'));
+      render();
+    }
+
+    async function toggleItem(id) {
+      const item = items.find(i => i.id === id);
+      if (!item) return;
+      const newDone = !item.done;
+      const { error } = await supabase.from('shopping_items').update({ done: newDone }).eq('id', id);
+      if (error) { console.error(error); return; }
+      item.done = newDone;
+      render();
+    }
+
+    async function deleteItem(id) {
+      if (!confirm('삭제하시겠습니까?')) return;
+      const { error } = await supabase.from('shopping_items').delete().eq('id', id);
+      if (error) { console.error(error); return; }
+      items = items.filter(i => i.id !== id);
+      if (editingId === id) editingId = null;
+      render();
+    }
+
+    async function saveItem(id) {
+      const input = document.getElementById(`edit-input-${id}`);
+      const text = input ? input.value.trim() : '';
+      if (!text) { editingId = null; render(); return; }
+      const { error } = await supabase.from('shopping_items').update({ text }).eq('id', id);
+      if (error) { console.error(error); return; }
+      const item = items.find(i => i.id === id);
+      if (item) item.text = text;
+      editingId = null;
       render();
     }
 
@@ -335,50 +389,18 @@
       if (!btn) return;
       const { action, id } = btn.dataset;
 
-      if (action === 'toggle') {
-        const item = items.find(i => i.id === id);
-        if (item) { item.done = !item.done; save(); render(); }
-      } else if (action === 'delete') {
-        if (confirm('삭제하시겠습니까?')) {
-          items = items.filter(i => i.id !== id);
-          if (editingId === id) editingId = null;
-          save(); render();
-        }
-      } else if (action === 'edit') {
-        editingId = id;
-        render();
-      } else if (action === 'save') {
-        const input = document.getElementById(`edit-input-${id}`);
-        const text = input ? input.value.trim() : '';
-        if (text) {
-          const item = items.find(i => i.id === id);
-          if (item) item.text = text;
-          save();
-        }
-        editingId = null;
-        render();
-      } else if (action === 'cancelEdit') {
-        editingId = null;
-        render();
-      }
+      if (action === 'toggle') toggleItem(id);
+      else if (action === 'delete') deleteItem(id);
+      else if (action === 'edit') { editingId = id; render(); }
+      else if (action === 'save') saveItem(id);
+      else if (action === 'cancelEdit') { editingId = null; render(); }
     });
 
     document.getElementById('list').addEventListener('keydown', e => {
       if (e.target.classList.contains('item-edit-input')) {
-        if (e.key === 'Enter') {
-          const id = e.target.id.replace('edit-input-', '');
-          const text = e.target.value.trim();
-          if (text) {
-            const item = items.find(i => i.id === id);
-            if (item) item.text = text;
-            save();
-          }
-          editingId = null;
-          render();
-        } else if (e.key === 'Escape') {
-          editingId = null;
-          render();
-        }
+        const id = e.target.id.replace('edit-input-', '');
+        if (e.key === 'Enter') saveItem(id);
+        else if (e.key === 'Escape') { editingId = null; render(); }
       }
     });
 
@@ -390,13 +412,14 @@
       });
     });
 
-    document.getElementById('btn-clear-done').addEventListener('click', () => {
-      const doneCount = items.filter(i => i.done).length;
-      if (doneCount === 0) return alert('완료된 항목이 없습니다.');
-      if (confirm(`완료된 항목 ${doneCount}개를 삭제하시겠습니까?`)) {
-        items = items.filter(i => !i.done);
-        save(); render();
-      }
+    document.getElementById('btn-clear-done').addEventListener('click', async () => {
+      const doneItems = items.filter(i => i.done);
+      if (doneItems.length === 0) return alert('완료된 항목이 없습니다.');
+      if (!confirm(`완료된 항목 ${doneItems.length}개를 삭제하시겠습니까?`)) return;
+      const { error } = await supabase.from('shopping_items').delete().eq('done', true);
+      if (error) { console.error(error); return; }
+      items = items.filter(i => !i.done);
+      render();
     });
 
     // 날짜 표시
@@ -404,7 +427,7 @@
     document.getElementById('header-date').textContent =
       now.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
 
-    render();
+    loadItems();
   </script>
 </body>
 </html>
