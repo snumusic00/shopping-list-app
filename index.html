@@ -265,7 +265,7 @@
   <script>
     const SUPABASE_URL = 'https://pxfvzuuajimoegfmrqiv.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB4ZnZ6dXVhamltb2VnZm1ycWl2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3MDQyNzYsImV4cCI6MjA4OTI4MDI3Nn0.cuuMXL_zWw98A1nqGEJiR4SgMuiRyo4R4xNuziSBVPk';
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     let items = [];
     let filter = 'all';
@@ -325,7 +325,7 @@
 
     async function loadItems() {
       document.getElementById('list').innerHTML = '<div class="loading">불러오는 중...</div>';
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from('shopping_items')
         .select('*')
         .order('created_at', { ascending: false });
@@ -340,7 +340,7 @@
       if (!text) return;
 
       const newItem = { id: genId(), text, done: false };
-      const { error } = await supabase.from('shopping_items').insert(newItem);
+      const { error } = await db.from('shopping_items').insert(newItem);
       if (error) { console.error(error); return; }
 
       items.unshift(newItem);
@@ -354,7 +354,7 @@
       const item = items.find(i => i.id === id);
       if (!item) return;
       const newDone = !item.done;
-      const { error } = await supabase.from('shopping_items').update({ done: newDone }).eq('id', id);
+      const { error } = await db.from('shopping_items').update({ done: newDone }).eq('id', id);
       if (error) { console.error(error); return; }
       item.done = newDone;
       render();
@@ -362,7 +362,7 @@
 
     async function deleteItem(id) {
       if (!confirm('삭제하시겠습니까?')) return;
-      const { error } = await supabase.from('shopping_items').delete().eq('id', id);
+      const { error } = await db.from('shopping_items').delete().eq('id', id);
       if (error) { console.error(error); return; }
       items = items.filter(i => i.id !== id);
       if (editingId === id) editingId = null;
@@ -373,7 +373,7 @@
       const input = document.getElementById(`edit-input-${id}`);
       const text = input ? input.value.trim() : '';
       if (!text) { editingId = null; render(); return; }
-      const { error } = await supabase.from('shopping_items').update({ text }).eq('id', id);
+      const { error } = await db.from('shopping_items').update({ text }).eq('id', id);
       if (error) { console.error(error); return; }
       const item = items.find(i => i.id === id);
       if (item) item.text = text;
@@ -416,7 +416,7 @@
       const doneItems = items.filter(i => i.done);
       if (doneItems.length === 0) return alert('완료된 항목이 없습니다.');
       if (!confirm(`완료된 항목 ${doneItems.length}개를 삭제하시겠습니까?`)) return;
-      const { error } = await supabase.from('shopping_items').delete().eq('done', true);
+      const { error } = await db.from('shopping_items').delete().eq('done', true);
       if (error) { console.error(error); return; }
       items = items.filter(i => !i.done);
       render();
